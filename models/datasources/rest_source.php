@@ -24,6 +24,23 @@ class RestSource extends DataSource {
   public $Http = null;
 
   /**
+   * Request Logs
+   *
+   * @var array
+   * @access private
+   */
+  var $__requestLog = array();
+
+  /**
+   * Request Log limit per entry in bytes
+   *
+   * @var integer
+   * @access protected
+   */
+
+  var $_logLimitBytes = 5000;
+
+  /**
    * Loads HttpSocket class
    *
    * @param array $config
@@ -106,9 +123,25 @@ class RestSource extends DataSource {
 
     // Remove unwanted elements from request array
     $request = array_intersect_key($request, $this->Http->request);
-
+	
     // Issues request
     $response = $this->Http->request($request);
+
+	// Log the request in the query log
+	if(Configure::read('debug')) {
+		$logText = '';
+		foreach(array('request','response') as $logPart) {
+			$logTextForThisPart = $this->Http->{$logPart}['raw'];
+			if($logPart == 'response') {
+				$logTextForThisPart = $logTextForThisPart['response'];
+			}
+			if(strlen($logTextForThisPart) > $this->_logLimitBytes) {
+				$logTextForThisPart = substr($logTextForThisPart, 0, $this->_logLimitBytes).' [ ... truncated ...]';
+			}
+			$logText .= '---'.strtoupper($logPart)."---\n".$logTextForThisPart."\n\n";
+		}
+		$this->__requestLog[] = nl2br($logText);
+	}
 
     // Get content type header
     $contentType = $this->Http->response['header']['Content-Type'];
@@ -158,6 +191,21 @@ class RestSource extends DataSource {
     return $response;
 
   }
+
+	/**
+	 * Play nice with the DebugKit
+	 *
+	 * @param boolean sorted ignored
+	 * @param boolean clear will clear the log if set to true (default)
+	 * @return array of log requested
+	 */
+	function getLog($sorted = false, $clear = true){
+		$log = $this->__requestLog;
+		if($clear){
+			$this->__requestLog = array();
+		}
+		return array('log' => $log, 'count' => count($log), 'time' => 'Unknown');
+	}
 
 }
 ?>
