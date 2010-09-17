@@ -123,9 +123,13 @@ class RestSource extends DataSource {
 
     // Remove unwanted elements from request array
     $request = array_intersect_key($request, $this->Http->request);
+
+	$timerStart = microtime(true);
 	
     // Issues request
     $response = $this->Http->request($request);
+
+	$timerEnd = microtime(true);
 
 	// Log the request in the query log
 	if(Configure::read('debug')) {
@@ -140,7 +144,15 @@ class RestSource extends DataSource {
 			}
 			$logText .= '---'.strtoupper($logPart)."---\n".$logTextForThisPart."\n\n";
 		}
-		$this->__requestLog[] = nl2br($logText);
+		$took = round(($timerEnd - $timerStart)/1000);
+		$newLog = array(
+			'query' => $logText,
+			'error' => '',
+			'affected' => '',
+			'numRows' => '',
+			'took' => $took,
+		);
+		$this->__requestLog[] = $newLog;
 	}
 
     // Get content type header
